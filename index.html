@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="Aplikasi manajemen barang berbasis PWA" />
+  <title>Manajemen Barang — PWA</title>
+
+  <!-- PWA Manifest (inline via JS, no separate file needed) -->
+  <link rel="manifest" href="manifest.json" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f172a;
+      --surface:  #1e293b;
+      --card:     #253047;
+      --border:   #334155;
+      --accent:   #14b8a6;
+      --accent2:  #0d9488;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --danger:   #f43f5e;
+      --danger2:  #be123c;
+      --warning:  #f59e0b;
+      --success:  #10b981;
+      --radius:   10px;
+    }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header .logo {
+      width: 38px; height: 38px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+
+    header h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header span {
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: var(--card);
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      margin-left: auto;
+    }
+
+    /* ─── LAYOUT ─── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      main { grid-template-columns: 1fr; }
+      header { padding: 1rem; }
+    }
+
+    /* ─── CARD ─── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-title svg { opacity: 0.7; }
+
+    /* ─── FORM ─── */
+    .form-group { margin-bottom: 1rem; }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.88rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+    }
+
+    select option { background: var(--card); }
+
+    /* Edit mode highlight */
+    .editing input, .editing select {
+      border-color: var(--warning);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+    }
+
+    .edit-badge {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--warning);
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 1rem;
+    }
+
+    .edit-badge.visible { display: flex; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 1.2rem; }
+
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { opacity: 0.88; }
+
+    .btn-cancel {
+      background: var(--card);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      display: none;
+    }
+
+    .btn-cancel.visible { display: block; }
+    .btn-cancel:hover { color: var(--text); }
+
+    /* ─── STATS ─── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 1.6rem;
+      font-weight: 700;
+      font-family: 'DM Mono', monospace;
+      color: var(--accent);
+    }
+
+    .stat-lbl {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-top: 2px;
+    }
+
+    /* ─── TABLE ─── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    thead {
+      background: var(--card);
+    }
+
+    thead th {
+      text-align: left;
+      padding: 11px 14px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(20, 184, 166, 0.04); }
+    tbody tr.highlight { background: rgba(245, 158, 11, 0.07); }
+
+    td {
+      padding: 11px 14px;
+      vertical-align: middle;
+    }
+
+    .td-name { font-weight: 600; color: var(--text); }
+
+    .td-id {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-elektronik { background: rgba(20, 184, 166, 0.15); color: #5eead4; }
+    .badge-makanan    { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+    .badge-pakaian    { background: rgba(168, 85, 247, 0.15); color: #d8b4fe; }
+    .badge-lainnya    { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+
+    .qty {
+      font-family: 'DM Mono', monospace;
+      font-weight: 500;
+    }
+
+    .qty.low { color: var(--danger); }
+    .qty.mid { color: var(--warning); }
+    .qty.ok  { color: var(--success); }
+
+    .actions { display: flex; gap: 6px; }
+
+    .btn-act {
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn-act:active { transform: scale(0.95); }
+
+    .btn-edit {
+      background: rgba(245, 158, 11, 0.1);
+      border-color: rgba(245, 158, 11, 0.4);
+      color: var(--warning);
+    }
+
+    .btn-edit:hover { background: rgba(245, 158, 11, 0.2); }
+
+    .btn-del {
+      background: rgba(244, 63, 94, 0.1);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: var(--danger);
+    }
+
+    .btn-del:hover { background: rgba(244, 63, 94, 0.2); }
+
+    /* ─── EMPTY STATE ─── */
+    .empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted);
+    }
+
+    .empty-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .empty p { font-size: 0.875rem; }
+
+    /* ─── TOAST ─── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      z-index: 999;
+      max-width: 280px;
+    }
+
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.danger { border-left-color: var(--danger); }
+    #toast.warning { border-left-color: var(--warning); }
+
+    /* ─── SEARCH ─── */
+    .search-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    .search-row input {
+      flex: 1;
+      padding: 7px 12px;
+    }
+
+    .filter-select { width: 130px; flex-shrink: 0; }
+
+    /* ─── PWA INSTALL ─── */
+    #install-btn {
+      display: none;
+      background: rgba(20, 184, 166, 0.1);
+      border: 1px solid rgba(20, 184, 166, 0.3);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: auto;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📦</div>
+  <h1>Manajemen Barang</h1>
+  <button id="install-btn">⬇ Install App</button>
+  <span id="pwa-status">PWA ✓</span>
+</header>
+
+<main>
+  <!-- ─── FORM PANEL ─── -->
+  <aside>
+    <div class="card" id="form-card">
+      <div class="card-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        <span id="form-title">Tambah Barang</span>
+      </div>
+
+      <div class="edit-badge" id="edit-badge">
+        ✏️ Mode Edit — Sedang mengedit data
+      </div>
+
+      <div class="form-group">
+        <label for="inp-nama">Nama Barang</label>
+        <input type="text" id="inp-nama" placeholder="Contoh: Laptop Asus" required />
+      </div>
+
+      <div class="form-group">
+        <label for="inp-kategori">Kategori</label>
+        <select id="inp-kategori">
+          <option value="">— Pilih Kategori —</option>
+          <option value="elektronik">Elektronik</option>
+          <option value="makanan">Makanan</option>
+          <option value="pakaian">Pakaian</option>
+          <option value="lainnya">Lainnya</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="inp-jumlah">Jumlah (stok)</label>
+        <input type="number" id="inp-jumlah" placeholder="0" min="0" />
+      </div>
+
+      <div class="form-group">
+        <label for="inp-harga">Harga (Rp)</label>
+        <input type="number" id="inp-harga" placeholder="0" min="0" />
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="submitForm()">
+          <span id="btn-label">+ Tambah</span>
+        </button>
+        <button class="btn btn-cancel" id="btn-cancel" onclick="cancelEdit()">Batal</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ─── TABLE PANEL ─── -->
+  <section>
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-val" id="stat-total">0</div>
+        <div class="stat-lbl">Total Barang</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-stok">0</div>
+        <div class="stat-lbl">Total Stok</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="stat-nilai">0</div>
+        <div class="stat-lbl">Nilai (jt)</div>
+      </div>
+    </div>
+
+    <!-- Search + Filter -->
+    <div class="search-row">
+      <input type="text" id="search" placeholder="🔍 Cari barang…" oninput="renderTable()" />
+      <select class="filter-select" id="filter-kat" onchange="renderTable()">
+        <option value="">Semua</option>
+        <option value="elektronik">Elektronik</option>
+        <option value="makanan">Makanan</option>
+        <option value="pakaian">Pakaian</option>
+        <option value="lainnya">Lainnya</option>
+      </select>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#ID</th>
+            <th>Nama Barang</th>
+            <th>Kategori</th>
+            <th>Stok</th>
+            <th>Harga</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="tabel-barang"></tbody>
+      </table>
+      <div class="empty" id="empty-state" style="display:none;">
+        <div class="empty-icon">📭</div>
+        <p>Belum ada data barang.<br>Tambahkan barang lewat form di samping.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════
+//  STATE — Data tersimpan di localStorage
+// ════════════════════════════════════════════
+let barang = JSON.parse(localStorage.getItem('barang') || '[]');
+let editId = null;
+let nextId = parseInt(localStorage.getItem('nextId') || '1');
+
+function saveToStorage() {
+  localStorage.setItem('barang', JSON.stringify(barang));
+  localStorage.setItem('nextId', String(nextId));
+}
+
+// ════════════════════════════════════════════
+//  FETCH API — simulasi CRUD via Promise
+// ════════════════════════════════════════════
+function apiCreate(data) {
+  return new Promise(resolve => setTimeout(() => {
+    const item = { id: nextId++, ...data, createdAt: new Date().toISOString() };
+    barang.push(item);
+    saveToStorage();
+    resolve(item);
+  }, 200));
+}
+
+function apiRead() {
+  return new Promise(resolve => setTimeout(() => resolve([...barang]), 100));
+}
+
+function apiUpdate(id, data) {
+  return new Promise((resolve, reject) => setTimeout(() => {
+    const idx = barang.findIndex(b => b.id === id);
+    if (idx === -1) return reject('Not found');
+    barang[idx] = { ...barang[idx], ...data };
+    saveToStorage();
+    resolve(barang[idx]);
+  }, 200));
+}
+
+function apiDelete(id) {
+  return new Promise((resolve, reject) => setTimeout(() => {
+    const idx = barang.findIndex(b => b.id === id);
+    if (idx === -1) return reject('Not found');
+    barang.splice(idx, 1);
+    saveToStorage();
+    resolve(true);
+  }, 200));
+}
+
+// ════════════════════════════════════════════
+//  CREATE / UPDATE — Submit Form
+// ════════════════════════════════════════════
+async function submitForm() {
+  const nama     = document.getElementById('inp-nama').value.trim();
+  const kategori = document.getElementById('inp-kategori').value;
+  const jumlah   = parseInt(document.getElementById('inp-jumlah').value) || 0;
+  const harga    = parseInt(document.getElementById('inp-harga').value) || 0;
+
+  if (!nama) return showToast('⚠ Nama barang wajib diisi!', 'warning');
+  if (!kategori) return showToast('⚠ Pilih kategori terlebih dahulu!', 'warning');
+
+  const data = { nama, kategori, jumlah, harga };
+
+  if (editId !== null) {
+    // UPDATE
+    await apiUpdate(editId, data);
+    showToast('✏️ Barang berhasil diperbarui!');
+    cancelEdit();
+  } else {
+    // CREATE
+    await apiCreate(data);
+    showToast('✅ Barang berhasil ditambahkan!');
+    clearForm();
+  }
+
+  await refreshTable();
+}
+
+// ════════════════════════════════════════════
+//  READ — Render Tabel
+// ════════════════════════════════════════════
+async function refreshTable() {
+  await apiRead();
+  renderTable();
+  updateStats();
+}
+
+function renderTable() {
+  const keyword = document.getElementById('search').value.toLowerCase();
+  const kat     = document.getElementById('filter-kat').value;
+
+  const filtered = barang.filter(b => {
+    const matchKat  = !kat || b.kategori === kat;
+    const matchName = b.nama.toLowerCase().includes(keyword);
+    return matchKat && matchName;
+  });
+
+  const tbody = document.getElementById('tabel-barang');
+  const empty = document.getElementById('empty-state');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  tbody.innerHTML = filtered.map(b => `
+    <tr id="row-${b.id}" class="${editId === b.id ? 'highlight' : ''}">
+      <td class="td-id">BRG-${String(b.id).padStart(3,'0')}</td>
+      <td class="td-name">${escHtml(b.nama)}</td>
+      <td><span class="badge badge-${b.kategori}">${b.kategori}</span></td>
+      <td class="qty ${b.jumlah <= 5 ? 'low' : b.jumlah <= 20 ? 'mid' : 'ok'}">${b.jumlah}</td>
+      <td style="font-family:'DM Mono',monospace; font-size:0.82rem;">
+        Rp ${b.harga.toLocaleString('id-ID')}
+      </td>
+      <td>
+        <div class="actions">
+          <button class="btn-act btn-edit" onclick="editBarang(${b.id})">✏ Edit</button>
+          <button class="btn-act btn-del"  onclick="hapusBarang(${b.id})">🗑 Hapus</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ════════════════════════════════════════════
+//  UPDATE — Pindahkan data ke form (Edit)
+// ════════════════════════════════════════════
+function editBarang(id) {
+  const item = barang.find(b => b.id === id);
+  if (!item) return;
+
+  // Pindahkan data dari tabel ke Input Form
+  document.getElementById('inp-nama').value     = item.nama;
+  document.getElementById('inp-kategori').value = item.kategori;
+  document.getElementById('inp-jumlah').value   = item.jumlah;
+  document.getElementById('inp-harga').value    = item.harga;
+
+  editId = id;
+
+  // UI Feedback
+  document.getElementById('form-title').textContent = 'Edit Barang';
+  document.getElementById('btn-label').textContent  = '💾 Simpan';
+  document.getElementById('edit-badge').classList.add('visible');
+  document.getElementById('btn-cancel').classList.add('visible');
+  document.getElementById('form-card').classList.add('editing');
+
+  // Highlight baris yang sedang diedit
+  renderTable();
+
+  // Scroll ke form
+  document.querySelector('aside').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('inp-nama').focus();
+
+  showToast(`✏️ Mengedit: ${item.nama}`, 'warning');
+}
+
+function cancelEdit() {
+  editId = null;
+  clearForm();
+  document.getElementById('form-title').textContent = 'Tambah Barang';
+  document.getElementById('btn-label').textContent  = '+ Tambah';
+  document.getElementById('edit-badge').classList.remove('visible');
+  document.getElementById('btn-cancel').classList.remove('visible');
+  document.getElementById('form-card').classList.remove('editing');
+  renderTable();
+}
+
+// ════════════════════════════════════════════
+//  DELETE — dengan confirm()
+// ════════════════════════════════════════════
+async function hapusBarang(id) {
+  const item = barang.find(b => b.id === id);
+  if (!item) return;
+
+  // Konfirmasi penghapusan — mencegah penghapusan tidak sengaja
+  const konfirmasi = confirm(
+    `⚠️ KONFIRMASI HAPUS\n\n` +
+    `Anda yakin ingin menghapus barang:\n` +
+    `"${item.nama}" (Stok: ${item.jumlah})?\n\n` +
+    `Tindakan ini tidak dapat dibatalkan!`
+  );
+
+  if (!konfirmasi) {
+    showToast('❌ Penghapusan dibatalkan.', 'warning');
+    return;
+  }
+
+  await apiDelete(id);
+
+  // Jika barang yang dihapus sedang diedit, cancel edit
+  if (editId === id) cancelEdit();
+
+  showToast(`🗑 "${item.nama}" berhasil dihapus.`, 'danger');
+  await refreshTable();
+}
+
+// ════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════
+function clearForm() {
+  ['inp-nama','inp-kategori','inp-jumlah','inp-harga'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+function updateStats() {
+  document.getElementById('stat-total').textContent = barang.length;
+  const totalStok = barang.reduce((s, b) => s + b.jumlah, 0);
+  document.getElementById('stat-stok').textContent = totalStok.toLocaleString('id-ID');
+  const totalNilai = barang.reduce((s, b) => s + (b.jumlah * b.harga), 0);
+  document.getElementById('stat-nilai').textContent = (totalNilai / 1_000_000).toFixed(1);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 3000);
+}
+
+// ════════════════════════════════════════════
+//  SERVICE WORKER (PWA)
+// ════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(() => console.log('SW registered ✓'))
+    .catch(err => console.warn('SW error:', err));
+}
+
+// ════════════════════════════════════════════
+//  PWA INSTALL PROMPT
+// ════════════════════════════════════════════
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-btn').style.display = 'block';
+});
+
+document.getElementById('install-btn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') showToast('🎉 App berhasil diinstall!');
+  deferredPrompt = null;
+  document.getElementById('install-btn').style.display = 'none';
+});
+
+// ════════════════════════════════════════════
+//  INIT — Seed data contoh jika kosong
+// ════════════════════════════════════════════
+async function init() {
+  if (barang.length === 0) {
+    // Seed data contoh
+    await apiCreate({ nama: 'Laptop Asus VivoBook', kategori: 'elektronik', jumlah: 5,  harga: 8500000 });
+    await apiCreate({ nama: 'Kemeja Batik Pria',    kategori: 'pakaian',    jumlah: 30, harga: 120000  });
+    await apiCreate({ nama: 'Mie Instan Goreng',    kategori: 'makanan',    jumlah: 100,harga: 3500    });
+    await apiCreate({ nama: 'Mouse Wireless',        kategori: 'elektronik', jumlah: 15, harga: 180000  });
+  }
+  await refreshTable();
+}
+
+init();
+</script>
+</body>
+</html>
