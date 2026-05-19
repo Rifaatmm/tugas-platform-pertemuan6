@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manajemen Barang</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    h2   { color: #333; }
+    form { background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+    form input, form select {
+      display: block; width: 100%; padding: 8px; margin: 6px 0 14px;
+      border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+    }
+    form button {
+      padding: 10px 20px; background: #4CAF50; color: white;
+      border: none; border-radius: 4px; cursor: pointer; margin-right: 8px;
+    }
+    form button#btnBatal { background: #888; display: none; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+    th { background: #4CAF50; color: white; padding: 12px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+    tr:hover { background: #f9f9f9; }
+    .btn-edit   { background: #2196F3; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 4px; }
+    .btn-hapus  { background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+    .edit-mode  { background: #fff8e1 !important; }
+  </style>
+</head>
+<body>
+
+<h2>📦 Manajemen Barang</h2>
+
+<!-- ===== FORM TAMBAH / EDIT ===== -->
+<form id="formBarang">
+
+  <!-- INPUT HIDDEN untuk menyimpan ID saat mode edit -->
+  <input type="hidden" id="id_barang" value="" />
+
+  <label>Nama Barang</label>
+  <input type="text" id="nama_barang" placeholder="Masukkan nama barang" required />
+
+  <label>Kategori</label>
+  <input type="text" id="kategori" placeholder="Masukkan kategori" required />
+
+  <label>Harga (Rp)</label>
+  <input type="number" id="harga" placeholder="Masukkan harga" min="0" required />
+
+  <label>Stok</label>
+  <input type="number" id="stok" placeholder="Masukkan stok" min="0" required />
+
+  <div>
+    <button type="submit" id="btnSimpan">💾 Simpan</button>
+    <button type="button" id="btnBatal" onclick="batalEdit()">✖ Batal</button>
+  </div>
+</form>
+
+<!-- ===== TABEL DATA BARANG ===== -->
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Nama Barang</th>
+      <th>Kategori</th>
+      <th>Harga</th>
+      <th>Stok</th>
+      <th>Aksi</th>
+    </tr>
+  </thead>
+  <tbody id="tabelBody">
+    <tr><td colspan="6" style="text-align:center">Memuat data...</td></tr>
+  </tbody>
+</table>
+
+<script>
+  // ==============================
+  //  KONFIGURASI URL API
+  // ==============================
+  const API_URL = "http://localhost/nama_folder_kamu"; // Sesuaikan path server kamu
+
+  // ==============================
+  //  GET - Ambil semua data barang
+  // ==============================
+  async function getBarang() {
+    try {
+      const res  = await fetch(`${API_URL}/get_barang.php`);
+      const data = await res.json();
+      tampilkanData(data);
+    } catch (err) {
+      console.error("Gagal memuat data:", err);
+      document.getElementById("tabelBody").innerHTML =
+        '<tr><td colspan="6" style="text-align:center;color:red">Gagal memuat data</td></tr>';
+    }
+  }
+
+  // Render data ke tabel
+  function tampilkanData(data) {
+    const tbody = document.getElementById("tabelBody");
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center">Belum ada data</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map((b, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td>${b.nama_barang}</td>
+        <td>${b.kategori}</td>
+        <td>Rp ${Number(b.harga).toLocaleString("id-ID")}</td>
+        <td>${b.stok}</td>
+        <td>
+          <button class="btn-edit"  onclick="isiFormEdit(${b.id}, '${b.nama_barang}', '${b.kategori}', ${b.harga}, ${b.stok})">✏ Edit</button>
+          <button class="btn-hapus" onclick="hapusBarang(${b.id})">🗑 Hapus</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  // ==============================
+  //  POST - Tambah barang baru
+  // ==============================
+  async function tambahBarang(dataBarang) {
+    const res  = await fetch(`${API_URL}/tambah_barang.php`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(dataBarang)
+    });
+    return res.json();
+  }
+
+  // ==============================
+  //  PUT - Edit / Update barang  ← TUGAS UTAMA
+  // ==============================
+  async function editBarang(dataBarang) {
+    const res = await fetch(`${API_URL}/edit_barang.php`, {
+      method:  "PUT",                                  // Metode PUT
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(dataBarang)              // Kirim data sebagai JSON
+    });
+    return res.json();
+  }
+
+  // ==============================
+  //  DELETE - Hapus barang
+  // ==============================
+  async function hapusBarang(id) {
+    if (!confirm("Yakin ingin menghapus barang ini?")) return;
+    try {
+      const res    = await fetch(`${API_URL}/hapus_barang.php`, {
+        method:  "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ id })
+      });
+      const result = await res.json();
+      alert(result.message);
+      getBarang();
+    } catch (err) {
+      alert("Gagal menghapus data");
+    }
+  }
+
+  // ==============================
+  //  ISI FORM saat tombol Edit diklik
+  // ==============================
+  function isiFormEdit(id, nama, kategori, harga, stok) {
+    // Isi input hidden dengan ID
+    document.getElementById("id_barang").value   = id;
+
+    // Isi field form
+    document.getElementById("nama_barang").value = nama;
+    document.getElementById("kategori").value    = kategori;
+    document.getElementById("harga").value       = harga;
+    document.getElementById("stok").value        = stok;
+
+    // Ubah tampilan form ke mode edit
+    document.getElementById("btnSimpan").textContent = "🔄 Update";
+    document.getElementById("btnBatal").style.display = "inline-block";
+    document.getElementById("formBarang").classList.add("edit-mode");
+
+    // Scroll ke atas ke form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // Reset form ke mode tambah
+  function batalEdit() {
+    document.getElementById("formBarang").reset();
+    document.getElementById("id_barang").value        = "";
+    document.getElementById("btnSimpan").textContent  = "💾 Simpan";
+    document.getElementById("btnBatal").style.display = "none";
+    document.getElementById("formBarang").classList.remove("edit-mode");
+  }
+
+  // ==============================
+  //  SUBMIT FORM (Tambah / Update)
+  // ==============================
+  document.getElementById("formBarang").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const id          = document.getElementById("id_barang").value;   // Ambil dari input hidden
+    const nama_barang = document.getElementById("nama_barang").value;
+    const kategori    = document.getElementById("kategori").value;
+    const harga       = document.getElementById("harga").value;
+    const stok        = document.getElementById("stok").value;
+
+    const dataBarang  = { id, nama_barang, kategori, harga, stok };
+
+    try {
+      let result;
+
+      if (id) {
+        // Ada ID → mode EDIT → gunakan PUT
+        result = await editBarang(dataBarang);
+      } else {
+        // Tidak ada ID → mode TAMBAH → gunakan POST
+        result = await tambahBarang(dataBarang);
+      }
+
+      alert(result.message);
+
+      if (result.status === "success") {
+        batalEdit();   // Reset form
+        getBarang();   // Refresh tabel
+      }
+    } catch (err) {
+      alert("Terjadi kesalahan. Cek koneksi ke server.");
+      console.error(err);
+    }
+  });
+
+  // Muat data saat halaman dibuka
+  getBarang();
+</script>
+
+</body>
+</html>
